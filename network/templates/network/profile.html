@@ -1,0 +1,134 @@
+{% extends "network/layout.html" %}
+{% load static %}
+
+{% block body %}
+    <head>
+        <script type="text/javascript" src="{% static 'network/index.js' %}"></script>
+    </head>
+
+
+    <h2>{{ username }} Posts</h2>
+
+    <div class="container">
+        <div class="row d-flex justify-content-center">
+            <h3 class="col-4">Followers: {{ followers.count }}</h3>
+            <h3 class="col-4">Following: {{ following.count }}</h3>
+
+            {% if user.is_authenticated %}
+                {# Пользователь != Профилю #}
+                {% if user.username != username %}
+                    {# Проверка подписан ли на пользователя #}
+                    {% if isFollowing %}
+                        <form action="{% url 'unfollow' %}" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="userfollow" value="{{ username }}" />
+                            <input type="submit" id="unf_button" value="Unfollow">
+                        </form>
+                    {% else %}
+                        <form action="{% url 'follow' %}" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="userfollow" value="{{ username }}" />
+                            <input type="submit" id="f_button" value="Follow">
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+
+        </div>
+    </div>
+
+    {# Показ всех постов #}
+    <div class="all-posts">
+        {% for post in page_posts %}
+            <div class="my-post">
+                <h6 class="username" ><a href="{% url 'profile' user_id=post.user.id %}">@{{ post.user }}</a>
+
+                    {% if user.is_authenticated %}
+                    {% if user == post.user %}
+                        <div>
+                            {# Кнопка редактирования через JS #}
+                            <button style="margin-left: 75px; margin-top: -40px" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#edit_post_{{ post.id }}">Edit</button>
+                        </div>
+
+                        {# Логика кнопки "Edit" #}
+                        <div class="modal fade" id="edit_post_{{ post.id }}" data-bs-backdrop="static"  data-bs-keyboard="false" tabindex="-1" aria-labelledby="edit_post_label" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title fs-5" id="edit_post_label">Edit Post</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                <div class="modal-body">
+                                    <textarea rows="5" maxlength="200" id="textarea{{ post.id }}" class="form-control" name="content">{{ post.content }}</textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-primary" onclick="save_edit({{ post.id }})" data-bs-dismiss="modal">Save changes</button>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% endif %}
+                </h6>
+
+                <h4 class="my-content" id="content{{ post.id }}">{{ post.content }}</h4>
+                <p class="date">{{ post.date }}</p>
+                {% if user.is_authenticated %}
+                    {% if user == post.user %}
+                        <a href="" class="card-link {% if post.number_of_likes > 0 %} fas {%else%} far {% endif %} fa-heart"></a>
+                        {{ post.number_of_likes }}
+                    {% else %}
+                        {% if user in post.likes.all %}
+                            <a href="{% url 'like' post.id %}" class="card-link fas fa-heart"></a>
+                        {% else %}
+                            <a href="{% url 'like' post.id %}" class="card-link far fa-heart"></a>
+                        {% endif %}
+                        <a id="likes_counter">{{ post.number_of_likes }}</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Сортировка страницы через пагинацию #}
+    <nav aria-label="Page navigation example">
+      <ul class="pagination mx-5">
+
+        {# Пагинация первой или предыдущих страниц #}
+        {% if page_posts.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page=1">First</a></li>
+            <li class="page-item"><a class="page-link" href="?page={{ page_posts.previous_page_number }}">Previous</a></li>
+        {% else %}
+            <li class="page-item disabled"><a class="page-link">First</a></li>
+            <li class="page-item disabled"><a class="page-link">Previous</a></li>
+        {% endif %}
+
+        {# Пагинация промежуточных страниц #}
+        {% for pg in page_posts.paginator.page_range %}
+
+        {% if pg == page_posts.number %}
+        <li class="page-item active" aria-current="page">
+            <span class="page-link" id="pg_num">
+            {{ pg }}
+            <span class="sr-only">(current)</span>
+            </span>
+        </li>
+        {# Показывает 3 страницы в пагинаторе (1-3, 5-8) #}
+        {% elif pg < page_posts.number|add:3 and pg > page_posts.number|add:-3 %}
+        <li class="page-item">
+            <a class="page-link pagination-green-inactive" href="{{GET_params.urlencode}}?page={{ pg }}">{{ pg }}</a>
+        </li>
+        {% endif %}
+
+        {% endfor %}
+
+        {# Пагинация последней или следующих страниц #}
+        {% if page_posts.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_posts.next_page_number }}">Next</a></li>
+            <li class="page-item"><a class="page-link" href="?page={{ page_posts.paginator.num_pages }}">Last</a></li>
+        {% else %}
+            <li class="page-item disabled"><a class="page-link">Next</a></li>
+            <li class="page-item disabled"><a class="page-link">Last</a></li>
+        {% endif %}
+
+{% endblock %}
